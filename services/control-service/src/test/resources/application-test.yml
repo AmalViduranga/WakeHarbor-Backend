@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:wakeharbor_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  flyway:
+    enabled: false
+  mail:
+    host:
+
+wakeharbor:
+  admin:
+    email: testadmin@wakeharbor.local
+    password: TestAdminPassword123!
+  security:
+    jwt-secret: test_super_secret_jwt_signing_key_wakeharbor_secure_token_32_chars!
+    encryption-secret: test_encryption_secret_key_1234567890_wakeharbor!
+    cookie-name: wakeharbor_session
+  worker:
+    secret: test_worker_secret_token_1234567890

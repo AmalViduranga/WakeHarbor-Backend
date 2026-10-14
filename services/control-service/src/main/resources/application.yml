@@ -1,0 +1,98 @@
+server:
+  port: ${CONTROL_SERVICE_PORT:8080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: wakeharbor-control-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:wakeharbor}?currentSchema=${DB_SCHEMA:public}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres_secure_password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 20000
+      max-lifetime: 1800000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 25
+          order_inserts: true
+          order_updates: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS:true}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+
+# WakeHarbor Custom Configuration Properties
+wakeharbor:
+  admin:
+    email: ${WAKEHARBOR_ADMIN_EMAIL:admin@wakeharbor.local}
+    password: ${WAKEHARBOR_ADMIN_PASSWORD:ChangeThisToASecureAdminPassword123!}
+  security:
+    jwt-secret: ${WAKEHARBOR_JWT_SECRET:super_secret_jwt_signing_key_wakeharbor_secure_token_minimum_32_chars!}
+    jwt-expiration-minutes: 1440 # 24 hours
+    encryption-secret: ${WAKEHARBOR_ENCRYPTION_SECRET:4f8b2c1e9a3d7f6e5b4a3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f}
+    cookie-name: wakeharbor_session
+    cookie-secure: ${WAKEHARBOR_COOKIE_SECURE:false}
+    cookie-same-site: Lax
+  worker:
+    secret: ${WAKEHARBOR_WORKER_SECRET:internal_worker_secret_wakeharbor_machine_token_489247291847129}
+    liveness-timeout-seconds: 180
+  cors:
+    allowed-origins: ${FRONTEND_ORIGIN:http://localhost:3000}
+  scheduling:
+    claim-batch-size: ${WAKEHARBOR_JOB_CLAIM_BATCH_SIZE:10}
+    lease-duration-seconds: ${WAKEHARBOR_JOB_LEASE_SECONDS:300}
+    dispatcher-interval-ms: 10000
+    retention-cleanup-cron: "0 0 2 * * ?" # 02:00 AM daily
+  notifications:
+    from-email: ${SMTP_FROM:alerts@wakeharbor.local}
+    default-recipient: ${ALERT_RECIPIENT_EMAIL:admin@wakeharbor.local}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [corrId=%X{correlationId:-} projId=%X{projectId:-}] - %msg%n"
+  level:
+    root: INFO
+    io.wakeharbor: INFO
+    org.springframework.security: WARN

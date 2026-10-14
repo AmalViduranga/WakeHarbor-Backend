@@ -1,0 +1,92 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wakeharbor-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-wakeharbor}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_secure_password}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-wakeharbor}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wakeharbor-net
+
+  control-service:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.control
+    container_name: wakeharbor-control-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-wakeharbor}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres_secure_password}
+      WAKEHARBOR_ADMIN_EMAIL: ${WAKEHARBOR_ADMIN_EMAIL:-admin@wakeharbor.local}
+      WAKEHARBOR_ADMIN_PASSWORD: ${WAKEHARBOR_ADMIN_PASSWORD:-ChangeThisToASecureAdminPassword123!}
+      WAKEHARBOR_ENCRYPTION_SECRET: ${WAKEHARBOR_ENCRYPTION_SECRET:-4f8b2c1e9a3d7f6e5b4a3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f}
+      WAKEHARBOR_JWT_SECRET: ${WAKEHARBOR_JWT_SECRET:-super_secret_jwt_signing_key_wakeharbor_secure_token_minimum_32_chars!}
+      WAKEHARBOR_WORKER_SECRET: ${WAKEHARBOR_WORKER_SECRET:-internal_worker_secret_wakeharbor_machine_token_489247291847129}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-alerts@wakeharbor.local}
+      ALERT_RECIPIENT_EMAIL: ${ALERT_RECIPIENT_EMAIL:-admin@wakeharbor.local}
+    ports:
+      - "${CONTROL_SERVICE_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - wakeharbor-net
+
+  heartbeat-worker:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.worker
+    container_name: wakeharbor-heartbeat-worker
+    restart: unless-stopped
+    depends_on:
+      control-service:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      CONTROL_SERVICE_INTERNAL_URL: http://control-service:8080
+      WAKEHARBOR_WORKER_SECRET: ${WAKEHARBOR_WORKER_SECRET:-internal_worker_secret_wakeharbor_machine_token_489247291847129}
+      WAKEHARBOR_WORKER_POLL_INTERVAL_MS: ${WAKEHARBOR_WORKER_POLL_INTERVAL_MS:-15000}
+      WAKEHARBOR_WORKER_HEALTH_INTERVAL_MS: ${WAKEHARBOR_WORKER_HEALTH_INTERVAL_MS:-30000}
+      WAKEHARBOR_REQUEST_TIMEOUT_SECONDS: ${WAKEHARBOR_REQUEST_TIMEOUT_SECONDS:-10}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - wakeharbor-net
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  wakeharbor-net:
+    driver: bridge

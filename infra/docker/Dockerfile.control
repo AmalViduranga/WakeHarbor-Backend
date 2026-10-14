@@ -1,0 +1,31 @@
+# Multi-stage build for WakeHarbor Control Service
+FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
+WORKDIR /app
+
+# Copy root pom and module poms for dependency caching
+COPY pom.xml ./
+COPY services/control-service/pom.xml ./services/control-service/
+COPY services/heartbeat-worker/pom.xml ./services/heartbeat-worker/
+
+# Download dependencies
+RUN mvn dependency:go-offline -pl services/control-service -am -B
+
+# Copy source and build
+COPY services/control-service/src ./services/control-service/src
+RUN mvn clean package -pl services/control-service -am -DskipTests -B
+
+# Runtime stage
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+
+RUN apk add --no-cache curl tzdata
+
+# Create non-root user
+RUN addgroup -S wakeharbor && adduser -S wakeharbor -G wakeharbor
+USER wakeharbor:wakeharbor
+
+COPY --from=builder /app/services/control-service/target/*.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-XX:+UseG1GC", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

@@ -1,0 +1,37 @@
+server:
+  port: ${WORKER_SERVICE_PORT:8081}
+  shutdown: graceful
+
+spring:
+  application:
+    name: wakeharbor-heartbeat-worker
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+# Worker Configuration
+wakeharbor:
+  worker:
+    id: ${WAKEHARBOR_WORKER_ID:worker-standalone-1}
+    control-service-url: ${CONTROL_SERVICE_INTERNAL_URL:http://localhost:8080}
+    worker-secret: ${WAKEHARBOR_WORKER_SECRET:internal_worker_secret_wakeharbor_machine_token_489247291847129}
+    poll-interval-ms: ${WAKEHARBOR_WORKER_POLL_INTERVAL_MS:15000}
+    heartbeat-interval-ms: ${WAKEHARBOR_WORKER_HEALTH_INTERVAL_MS:30000}
+    request-timeout-seconds: ${WAKEHARBOR_REQUEST_TIMEOUT_SECONDS:10}
+    max-concurrency: 5
+    batch-size: 10
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [workerId=%X{workerId:-} jobId=%X{jobId:-}] - %msg%n"
+  level:
+    root: INFO
+    io.wakeharbor: INFO
